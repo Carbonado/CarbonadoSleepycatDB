@@ -1,0 +1,303 @@
+/*
+ * Copyright 2006 Amazon Technologies, Inc. or its affiliates.
+ * Amazon, Amazon.com and Carbonado are trademarks or registered trademarks
+ * of Amazon Technologies, Inc. or its affiliates.  All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.amazon.carbonado.repo.sleepycat;
+
+import java.io.File;
+import com.sleepycat.db.CheckpointConfig;
+import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.Environment;
+import com.sleepycat.db.EnvironmentConfig;
+import com.sleepycat.db.LockDetectMode;
+import com.sleepycat.db.Transaction;
+import com.sleepycat.db.TransactionConfig;
+
+import com.amazon.carbonado.ConfigurationException;
+import com.amazon.carbonado.IsolationLevel;
+import com.amazon.carbonado.RepositoryException;
+import static com.amazon.carbonado.RepositoryBuilder.RepositoryReference;
+import com.amazon.carbonado.Storable;
+
+/**
+ * Repository implementation backed by a Berkeley DB. Data is encoded in the DB
+ * in a specialized format, and so this repository should not be used to open
+ * arbitrary Berkeley databases. DBRepository has total schema ownership, and
+ * so it updates type definitions in the storage layer automatically.
+ *
+ * @author Brian S O'Neill
+ * @author Vidya Iyer
+ */
+class DB4_4_Repository extends BDBRepository<Transaction> implements CompactionCapability {
+    private static final TransactionConfig
+        TXN_READ_UNCOMMITTED,        TXN_READ_COMMITTED,        TXN_REPEATABLE_READ,
+        TXN_READ_UNCOMMITTED_NOWAIT, TXN_READ_COMMITTED_NOWAIT, TXN_REPEATABLE_READ_NOWAIT;
+
+    static {
+        TXN_READ_UNCOMMITTED = new TransactionConfig();
+        TXN_READ_UNCOMMITTED.setReadUncommitted(true);
+
+        TXN_READ_COMMITTED = new TransactionConfig();
+        TXN_READ_COMMITTED.setReadCommitted(true);
+
+        TXN_REPEATABLE_READ = TransactionConfig.DEFAULT;
+
+        TXN_READ_UNCOMMITTED_NOWAIT = new TransactionConfig();
+        TXN_READ_UNCOMMITTED_NOWAIT.setReadUncommitted(true);
+        TXN_READ_UNCOMMITTED_NOWAIT.setNoWait(true);
+
+        TXN_READ_COMMITTED_NOWAIT = new TransactionConfig();
+        TXN_READ_COMMITTED_NOWAIT.setReadCommitted(true);
+        TXN_READ_COMMITTED_NOWAIT.setNoWait(true);
+
+        TXN_REPEATABLE_READ_NOWAIT = new TransactionConfig();
+        TXN_REPEATABLE_READ_NOWAIT.setNoWait(true);
+    }
+
+    // Default cache size, in bytes.
+    private static final long DEFAULT_CACHE_SIZE = 60 * 1024 * 1024;
+
+    final Environment mEnv;
+    boolean mReadOnly;
+    boolean mDatabasesTransactional;
+
+    /**
+     * Open the repository using the given BDB repository configuration.
+     *
+     * @throws IllegalArgumentException if name or environment home is null
+     * @throws RepositoryException if there is a problem opening the environment
+     */
+    DB4_4_Repository(RepositoryReference rootRef, BDBRepositoryBuilder builder)
+        throws RepositoryException
+    {
+        super(rootRef, builder, DB4_4_ExceptionTransformer.getInstance());
+
+        mReadOnly = builder.getReadOnly();
+
+        EnvironmentConfig envConfig;
+        try {
+            envConfig = (EnvironmentConfig) builder.getInitialEnvironmentConfig();
+        } catch (ClassCastException e) {
+            throw new ConfigurationException
+                ("Unsupported initial environment config. Must be instance of " +
+                 EnvironmentConfig.class.getName(), e);
+        }
+
+        long lockTimeout = builder.getLockTimeoutInMicroseconds();
+        long txnTimeout = builder.getTransactionTimeoutInMicroseconds();
+
+        if (envConfig == null) {
+            envConfig = new EnvironmentConfig();
+            envConfig.setTransactional(true);
+            envConfig.setAllowCreate(!mReadOnly);
+            envConfig.setTxnNoSync(builder.getTransactionNoSync());
+            envConfig.setPrivate(builder.isPrivate());
+
+            envConfig.setInitializeCache(true);
+            envConfig.setInitializeLocking(true);
+
+            envConfig.setLogAutoRemove(!mReadOnly);
+            Long cacheSize = builder.getCacheSize();
+            envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
+
+            envConfig.setMaxLocks(10000);
+            envConfig.setMaxLockObjects(10000);
+
+            envConfig.setLockTimeout(lockTimeout);
+            envConfig.setTxnTimeout(txnTimeout);
+
+            // BDB 4.4 feature to check if any process exited uncleanly. If so,
+            // run recovery. If any other processes are attached to the
+            // environment, they will get recovery exceptions. They just need
+            // to exit and restart.
+            envConfig.setRegister(true);
+            envConfig.setRunRecovery(true);
+        } else {
+            if (!envConfig.getTransactional()) {
+                throw new IllegalArgumentException("EnvironmentConfig: getTransactional is false");
+            }
+
+            if (!envConfig.getInitializeCache()) {
+                throw new IllegalArgumentException
+                    ("EnvironmentConfig: getInitializeCache is false");
+            }
+
+            if (envConfig.getCacheSize() <= 0) {
+                throw new IllegalArgumentException("EnvironmentConfig: invalid cache size");
+            }
+
+            if (!envConfig.getInitializeLocking()) {
+                throw new IllegalArgumentException
+                    ("EnvironmentConfig: getInitializeLocking is false");
+            }
+        }
+
+        mDatabasesTransactional = envConfig.getTransactional();
+        if (builder.getDatabasesTransactional() != null) {
+            mDatabasesTransactional = builder.getDatabasesTransactional();
+        }
+
+        try {
+            mEnv = new Environment(builder.getEnvironmentHomeFile(), envConfig);
+        } catch (DatabaseException e) {
+            throw DB4_4_ExceptionTransformer.getInstance().toRepositoryException(e);
+        } catch (Throwable e) {
+            String message = "Unable to open environment";
+            if (e.getMessage() != null) {
+                message += ": " + e.getMessage();
+            }
+            throw new RepositoryException(message, e);
+        }
+
+        if (!mReadOnly && !builder.getDataHomeFile().canWrite()) {
+            // Allow environment to be created, but databases are read-only.
+            // This is only significant if data home differs from environment home.
+            mReadOnly = true;
+        }
+
+        long deadlockInterval = Math.min(lockTimeout, txnTimeout);
+        // Make sure interval is no smaller than 0.5 seconds.
+        deadlockInterval = Math.max(500000, deadlockInterval) / 1000;
+
+        start(builder.getCheckpointInterval(), deadlockInterval);
+    }
+
+    public Object getEnvironment() {
+        return mEnv;
+    }
+
+    public <S extends Storable> Result<S> compact(Class<S> storableType)
+        throws RepositoryException
+    {
+        return ((BDBStorage) storageFor(storableType)).compact();
+    }
+
+    protected String getVersionMajor() {
+        return "db" + Environment.getVersionMajor();
+    }
+
+    protected String getVersionMajorMinor() {
+        return getVersionMajor() + '.' + Environment.getVersionMinor();
+    }
+
+    protected String getVersionMajorMinorPatch() {
+        return getVersionMajorMinor() + '.' + Environment.getVersionPatch();
+    }
+
+    IsolationLevel selectIsolationLevel(com.amazon.carbonado.Transaction parent,
+                                        IsolationLevel level)
+    {
+        if (level == null) {
+            if (parent == null) {
+                return IsolationLevel.REPEATABLE_READ;
+            }
+            return parent.getIsolationLevel();
+        }
+
+        if (level == IsolationLevel.SERIALIZABLE) {
+            // Not supported.
+            return null;
+        }
+
+        return level;
+    }
+
+    protected Transaction txn_begin(Transaction parent, IsolationLevel level) throws Exception {
+        TransactionConfig config;
+
+        if (!mDatabasesTransactional) {
+            return null;
+        }
+
+        switch (level) {
+        case READ_UNCOMMITTED:
+            config = TXN_READ_UNCOMMITTED;
+            break;
+        case READ_COMMITTED:
+            config = TXN_READ_COMMITTED;
+            break;
+        default:
+            config = TXN_REPEATABLE_READ;
+            break;
+        }
+
+        return mEnv.beginTransaction(parent, config);
+    }
+
+    protected Transaction txn_begin_nowait(Transaction parent, IsolationLevel level)
+        throws Exception
+    {
+        TransactionConfig config;
+
+        if (!mDatabasesTransactional) {
+            return null;
+        }
+
+        switch (level) {
+        case READ_UNCOMMITTED:
+            config = TXN_READ_UNCOMMITTED_NOWAIT;
+            break;
+        case READ_COMMITTED:
+            config = TXN_READ_COMMITTED_NOWAIT;
+            break;
+        default:
+            config = TXN_REPEATABLE_READ_NOWAIT;
+            break;
+        }
+
+        return mEnv.beginTransaction(parent, config);
+    }
+
+    protected void txn_commit(Transaction txn) throws Exception {
+        if (txn == null) return;
+
+        txn.commit();
+    }
+
+    protected void txn_abort(Transaction txn) throws Exception {
+        if (txn == null) return;
+
+        txn.abort();
+    }
+
+    protected void env_checkpoint() throws Exception {
+        CheckpointConfig cc = new CheckpointConfig();
+        cc.setForce(true);
+        mEnv.checkpoint(cc);
+    }
+
+    protected void env_checkpoint(int kBytes, int minutes) throws Exception {
+        CheckpointConfig cc = new CheckpointConfig();
+        cc.setKBytes(kBytes);
+        cc.setMinutes(minutes);
+        mEnv.checkpoint(cc);
+    }
+
+    protected void env_detectDeadlocks() throws Exception {
+        mEnv.detectDeadlocks(LockDetectMode.DEFAULT);
+    }
+
+    protected void env_close() throws Exception {
+        mEnv.close();
+    }
+
+    protected <S extends Storable> BDBStorage<Transaction, S> createStorage(Class<S> type)
+        throws Exception
+    {
+        return new DB4_4_Storage<S>(this, type);
+    }
+}
