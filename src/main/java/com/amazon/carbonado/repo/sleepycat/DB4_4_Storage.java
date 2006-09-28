@@ -32,9 +32,9 @@ import com.sleepycat.db.LockMode;
 import com.sleepycat.db.OperationStatus;
 import com.sleepycat.db.Transaction;
 
-import com.amazon.carbonado.Storable;
 import com.amazon.carbonado.ConfigurationException;
 import com.amazon.carbonado.RepositoryException;
+import com.amazon.carbonado.Storable;
 
 /**
  * Storage implementation for DBRepository.
@@ -43,6 +43,7 @@ import com.amazon.carbonado.RepositoryException;
  * @author Vidya Iyer
  * @author Nicole Deflaux
  */
+// FIXME: Rename to DB_Storage. API appears stable.
 class DB4_4_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
     // Primary database of Storable instances
     private Database mDatabase;
