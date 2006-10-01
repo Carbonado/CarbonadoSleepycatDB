@@ -81,6 +81,11 @@
       <artifactId>carbonado-sleepycat</artifactId>
       <version>1.1-SNAPSHOT</version>
     </dependency>
+    <dependency>
+      <groupId>com.sleepycat</groupId>
+      <artifactId>db</artifactId>
+      <version>4.5.0</version>
+    </dependency>
   </dependencies>
 
   <build>
