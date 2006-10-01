@@ -42,7 +42,7 @@ import com.amazon.carbonado.Storable;
  * @author Brian S O'Neill
  * @author Vidya Iyer
  */
-class DB4_4_Repository extends BDBRepository<Transaction> implements CompactionCapability {
+class DB_Repository extends BDBRepository<Transaction> implements CompactionCapability {
     private static final TransactionConfig
         TXN_READ_UNCOMMITTED,        TXN_READ_COMMITTED,        TXN_REPEATABLE_READ,
         TXN_READ_UNCOMMITTED_NOWAIT, TXN_READ_COMMITTED_NOWAIT, TXN_REPEATABLE_READ_NOWAIT;
@@ -81,10 +81,10 @@ class DB4_4_Repository extends BDBRepository<Transaction> implements CompactionC
      * @throws IllegalArgumentException if name or environment home is null
      * @throws RepositoryException if there is a problem opening the environment
      */
-    DB4_4_Repository(RepositoryReference rootRef, BDBRepositoryBuilder builder)
+    DB_Repository(RepositoryReference rootRef, BDBRepositoryBuilder builder)
         throws RepositoryException
     {
-        super(rootRef, builder, DB4_4_ExceptionTransformer.getInstance());
+        super(rootRef, builder, DB_ExceptionTransformer.getInstance());
 
         mReadOnly = builder.getReadOnly();
 
@@ -154,7 +154,7 @@ class DB4_4_Repository extends BDBRepository<Transaction> implements CompactionC
         try {
             mEnv = new Environment(builder.getEnvironmentHomeFile(), envConfig);
         } catch (DatabaseException e) {
-            throw DB4_4_ExceptionTransformer.getInstance().toRepositoryException(e);
+            throw DB_ExceptionTransformer.getInstance().toRepositoryException(e);
         } catch (Throwable e) {
             String message = "Unable to open environment";
             if (e.getMessage() != null) {
@@ -298,6 +298,6 @@ class DB4_4_Repository extends BDBRepository<Transaction> implements CompactionC
     protected <S extends Storable> BDBStorage<Transaction, S> createStorage(Class<S> type)
         throws Exception
     {
-        return new DB4_4_Storage<S>(this, type);
+        return new DB_Storage<S>(this, type);
     }
 }

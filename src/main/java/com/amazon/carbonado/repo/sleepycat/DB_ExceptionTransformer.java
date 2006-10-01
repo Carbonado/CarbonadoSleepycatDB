@@ -36,17 +36,17 @@ import com.amazon.carbonado.spi.ExceptionTransformer;
  *
  * @author Brian S O'Neill
  */
-class DB4_4_ExceptionTransformer extends ExceptionTransformer {
-    private static DB4_4_ExceptionTransformer cInstance;
+class DB_ExceptionTransformer extends ExceptionTransformer {
+    private static DB_ExceptionTransformer cInstance;
 
-    public static DB4_4_ExceptionTransformer getInstance() {
+    public static DB_ExceptionTransformer getInstance() {
         if (cInstance == null) {
-            cInstance = new DB4_4_ExceptionTransformer();
+            cInstance = new DB_ExceptionTransformer();
         }
         return cInstance;
     }
 
-    DB4_4_ExceptionTransformer() {
+    DB_ExceptionTransformer() {
     }
 
     @Override

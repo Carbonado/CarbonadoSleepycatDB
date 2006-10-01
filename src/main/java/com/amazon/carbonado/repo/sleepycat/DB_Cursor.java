@@ -36,7 +36,7 @@ import com.amazon.carbonado.Storable;
  *
  * @author Brian S O'Neill
  */
-class DB4_4_Cursor<S extends Storable> extends BDBCursor<Transaction, S> {
+class DB_Cursor<S extends Storable> extends BDBCursor<Transaction, S> {
     protected final Database mDatabase;
     private final LockMode mLockMode;
     private final DatabaseEntry mSearchKey;
@@ -56,13 +56,13 @@ class DB4_4_Cursor<S extends Storable> extends BDBCursor<Transaction, S> {
      * @param database primary database to use
      * @throws IllegalArgumentException if any bound is null but is not inclusive
      */
-    DB4_4_Cursor(BDBTransactionManager<Transaction> txnMgr,
-                 byte[] startBound, boolean inclusiveStart,
-                 byte[] endBound, boolean inclusiveEnd,
-                 int maxPrefix,
-                 boolean reverse,
-                 DB4_4_Storage<S> storage,
-                 Database database)
+    DB_Cursor(BDBTransactionManager<Transaction> txnMgr,
+              byte[] startBound, boolean inclusiveStart,
+              byte[] endBound, boolean inclusiveEnd,
+              int maxPrefix,
+              boolean reverse,
+              DB_Storage<S> storage,
+              Database database)
         throws DatabaseException, FetchException
     {
         super(txnMgr, startBound, inclusiveStart, endBound, inclusiveEnd,

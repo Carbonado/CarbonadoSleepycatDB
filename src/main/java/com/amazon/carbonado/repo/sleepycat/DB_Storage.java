@@ -43,8 +43,7 @@ import com.amazon.carbonado.Storable;
  * @author Vidya Iyer
  * @author Nicole Deflaux
  */
-// FIXME: Rename to DB_Storage. API appears stable.
-class DB4_4_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
+class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
     // Primary database of Storable instances
     private Database mDatabase;
 
@@ -56,7 +55,7 @@ class DB4_4_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
      * @throws DatabaseException
      * @throws SupportException
      */
-    DB4_4_Storage(DB4_4_Repository repository, Class<S> type)
+    DB_Storage(DB_Repository repository, Class<S> type)
         throws DatabaseException, RepositoryException
     {
         super(repository, type);
@@ -170,7 +169,7 @@ class DB4_4_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
     protected Object env_openPrimaryDatabase(Transaction txn, String name)
         throws Exception
     {
-        DB4_4_Repository dbRepository = (DB4_4_Repository) getRepository();
+        DB_Repository dbRepository = (DB_Repository) getRepository();
 
         Environment env = dbRepository.mEnv;
         boolean readOnly = dbRepository.mReadOnly;
@@ -219,7 +218,7 @@ class DB4_4_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
     }
 
     protected void env_removeDatabase(Transaction txn, String databaseName) throws Exception {
-        DB4_4_Repository dbRepository = (DB4_4_Repository) getRepository();
+        DB_Repository dbRepository = (DB_Repository) getRepository();
         String fileName = dbRepository.getDatabaseFileName(databaseName);
         mDatabase.getEnvironment().removeDatabase(txn, fileName, null);
     }
@@ -233,7 +232,7 @@ class DB4_4_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
          Object database)
         throws Exception
     {
-        return new DB4_4_Cursor<S>
+        return new DB_Cursor<S>
             (txnMgr,
              startBound, inclusiveStart,
              endBound, inclusiveEnd,
