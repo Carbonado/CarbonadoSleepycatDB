@@ -163,8 +163,4 @@ class DB_Cursor<S extends Storable> extends BDBCursor<Transaction, S> {
     protected boolean cursor_getPrevNoDup() throws Exception {
         return mCursor.getPrevNoDup(mSearchKey, mData, mLockMode) == SUCCESS;
     }
-
-    protected boolean cursor_delete() throws Exception {
-        return mCursor.delete() == SUCCESS;
-    }
 }
