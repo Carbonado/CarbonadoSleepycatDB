@@ -47,6 +47,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         TXN_READ_UNCOMMITTED,        TXN_READ_COMMITTED,        TXN_REPEATABLE_READ,
         TXN_READ_UNCOMMITTED_NOWAIT, TXN_READ_COMMITTED_NOWAIT, TXN_REPEATABLE_READ_NOWAIT;
 
+    private static final TransactionConfig TXN_SNAPSHOT;
+
     static {
         TXN_READ_UNCOMMITTED = new TransactionConfig();
         TXN_READ_UNCOMMITTED.setReadUncommitted(true);
@@ -66,12 +68,20 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
 
         TXN_REPEATABLE_READ_NOWAIT = new TransactionConfig();
         TXN_REPEATABLE_READ_NOWAIT.setNoWait(true);
+
+        TXN_SNAPSHOT = new TransactionConfig();
+        try {
+            TXN_SNAPSHOT.setSnapshot(true);
+        } catch (NoSuchMethodError e) {
+            // Must be older BDB version.
+        }
     }
 
     // Default cache size, in bytes.
     private static final long DEFAULT_CACHE_SIZE = 60 * 1024 * 1024;
 
     final Environment mEnv;
+    boolean mMVCC;
     boolean mReadOnly;
     boolean mDatabasesTransactional;
 
@@ -106,6 +116,15 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             envConfig.setAllowCreate(!mReadOnly);
             envConfig.setTxnNoSync(builder.getTransactionNoSync());
             envConfig.setPrivate(builder.isPrivate());
+            if (builder.isMultiversion()) {
+                try {
+                    envConfig.setMultiversion(true);
+                    mMVCC = true;
+                } catch (NoSuchMethodError e) {
+                    throw new ConfigurationException
+                        ("BDB product and version does not support MVCC");
+                }
+            }
 
             envConfig.setInitializeCache(true);
             envConfig.setInitializeLocking(true);
@@ -124,8 +143,12 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             // run recovery. If any other processes are attached to the
             // environment, they will get recovery exceptions. They just need
             // to exit and restart.
-            envConfig.setRegister(true);
-            envConfig.setRunRecovery(true);
+            try {
+                envConfig.setRegister(true);
+                envConfig.setRunRecovery(true);
+            } catch (NoSuchMethodError e) {
+                // Must be older BDB version.
+            }
         } else {
             if (!envConfig.getTransactional()) {
                 throw new IllegalArgumentException("EnvironmentConfig: getTransactional is false");
@@ -208,7 +231,12 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             return parent.getIsolationLevel();
         }
 
-        if (level == IsolationLevel.SERIALIZABLE) {
+        if (level == IsolationLevel.SNAPSHOT) {
+            if (!mMVCC) {
+                // Not supported.
+                return null;
+            }
+        } else if (level == IsolationLevel.SERIALIZABLE) {
             // Not supported.
             return null;
         }
@@ -229,6 +257,9 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             break;
         case READ_COMMITTED:
             config = TXN_READ_COMMITTED;
+            break;
+        case SNAPSHOT:
+            config = TXN_SNAPSHOT;
             break;
         default:
             config = TXN_REPEATABLE_READ;
@@ -253,6 +284,9 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             break;
         case READ_COMMITTED:
             config = TXN_READ_COMMITTED_NOWAIT;
+            break;
+        case SNAPSHOT:
+            config = TXN_SNAPSHOT;
             break;
         default:
             config = TXN_REPEATABLE_READ_NOWAIT;
@@ -292,7 +326,9 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     }
 
     protected void env_close() throws Exception {
-        mEnv.close();
+        if (mEnv != null) {
+            mEnv.close();
+        }
     }
 
     protected <S extends Storable> BDBStorage<Transaction, S> createStorage(Class<S> type)
