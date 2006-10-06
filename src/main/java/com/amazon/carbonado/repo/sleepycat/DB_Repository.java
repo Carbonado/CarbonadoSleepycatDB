@@ -18,7 +18,8 @@
 
 package com.amazon.carbonado.repo.sleepycat;
 
-import java.io.File;
+import java.util.concurrent.atomic.AtomicReference;
+
 import com.sleepycat.db.CheckpointConfig;
 import com.sleepycat.db.DatabaseException;
 import com.sleepycat.db.Environment;
@@ -29,8 +30,8 @@ import com.sleepycat.db.TransactionConfig;
 
 import com.amazon.carbonado.ConfigurationException;
 import com.amazon.carbonado.IsolationLevel;
+import com.amazon.carbonado.Repository;
 import com.amazon.carbonado.RepositoryException;
-import static com.amazon.carbonado.RepositoryBuilder.RepositoryReference;
 import com.amazon.carbonado.Storable;
 
 /**
@@ -91,7 +92,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
      * @throws IllegalArgumentException if name or environment home is null
      * @throws RepositoryException if there is a problem opening the environment
      */
-    DB_Repository(RepositoryReference rootRef, BDBRepositoryBuilder builder)
+    DB_Repository(AtomicReference<Repository> rootRef, BDBRepositoryBuilder builder)
         throws RepositoryException
     {
         super(rootRef, builder, DB_ExceptionTransformer.getInstance());
