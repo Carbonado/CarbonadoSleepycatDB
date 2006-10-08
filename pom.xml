@@ -78,7 +78,7 @@
   <dependencies>
     <dependency>
       <groupId>com.amazon.carbonado</groupId>
-      <artifactId>carbonado-sleepycat</artifactId>
+      <artifactId>carbonado</artifactId>
       <version>1.1-SNAPSHOT</version>
     </dependency>
     <dependency>
