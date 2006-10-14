@@ -126,6 +126,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                         ("BDB product and version does not support MVCC");
                 }
             }
+            envConfig.setLogInMemory(builder.getLogInMemory());
 
             envConfig.setInitializeCache(true);
             envConfig.setInitializeLocking(true);
