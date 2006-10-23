@@ -211,18 +211,6 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         return ((BDBStorage) storageFor(storableType)).compact();
     }
 
-    protected String getVersionMajor() {
-        return "db" + Environment.getVersionMajor();
-    }
-
-    protected String getVersionMajorMinor() {
-        return getVersionMajor() + '.' + Environment.getVersionMinor();
-    }
-
-    protected String getVersionMajorMinorPatch() {
-        return getVersionMajorMinor() + '.' + Environment.getVersionPatch();
-    }
-
     IsolationLevel selectIsolationLevel(com.amazon.carbonado.Transaction parent,
                                         IsolationLevel level)
     {
