@@ -147,8 +147,12 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             // environment, they will get recovery exceptions. They just need
             // to exit and restart.
             try {
-                envConfig.setRegister(true);
-                envConfig.setRunRecovery(true);
+                if (!builder.isPrivate()) {
+                    envConfig.setRegister(true);
+                    if (!mReadOnly) {
+                        envConfig.setRunRecovery(true);
+                    }
+                }
             } catch (NoSuchMethodError e) {
                 // Must be older BDB version.
             }
