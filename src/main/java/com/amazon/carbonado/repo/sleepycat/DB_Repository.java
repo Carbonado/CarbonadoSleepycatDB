@@ -34,6 +34,8 @@ import com.amazon.carbonado.Repository;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
 
+import com.amazon.carbonado.spi.ExceptionTransformer;
+
 /**
  * Repository implementation backed by a Berkeley DB. Data is encoded in the DB
  * in a specialized format, and so this repository should not be used to open
@@ -95,7 +97,19 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     DB_Repository(AtomicReference<Repository> rootRef, BDBRepositoryBuilder builder)
         throws RepositoryException
     {
-        super(rootRef, builder, DB_ExceptionTransformer.getInstance());
+        this(rootRef, builder, DB_ExceptionTransformer.getInstance());
+    }
+
+    /**
+     * Open the repository using the given BDB repository configuration.
+     *
+     * @throws IllegalArgumentException if name or environment home is null
+     * @throws RepositoryException if there is a problem opening the environment
+     */
+    DB_Repository(AtomicReference<Repository> rootRef, BDBRepositoryBuilder builder, ExceptionTransformer exTransformer)
+        throws RepositoryException
+    {
+        super(rootRef, builder, exTransformer);
 
         mReadOnly = builder.getReadOnly();
 

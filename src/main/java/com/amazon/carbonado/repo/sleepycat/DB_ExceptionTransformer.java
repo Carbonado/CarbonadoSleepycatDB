@@ -37,7 +37,7 @@ import com.amazon.carbonado.spi.ExceptionTransformer;
  * @author Brian S O'Neill
  */
 class DB_ExceptionTransformer extends ExceptionTransformer {
-    private static DB_ExceptionTransformer cInstance;
+    private volatile static DB_ExceptionTransformer cInstance;
 
     public static DB_ExceptionTransformer getInstance() {
         if (cInstance == null) {
