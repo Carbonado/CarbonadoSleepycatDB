@@ -5,7 +5,7 @@
   <artifactId>carbonado-sleepycat-db</artifactId>
   <packaging>jar</packaging>
   <name>CarbonadoSleepycatDB</name>
-  <version>1.1-BETA10</version>
+  <version>1.1-BETA11</version>
   <description>
     Support for Sleepycat DB Carbonado repository.
   </description>
