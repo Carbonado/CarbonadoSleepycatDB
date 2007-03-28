@@ -340,7 +340,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         }
     }
 
-    protected <S extends Storable> BDBStorage<Transaction, S> createStorage(Class<S> type)
+    protected <S extends Storable> BDBStorage<Transaction, S> createBDBStorage(Class<S> type)
         throws Exception
     {
         return new DB_Storage<S>(this, type);

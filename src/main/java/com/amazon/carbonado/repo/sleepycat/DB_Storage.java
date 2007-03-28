@@ -36,6 +36,8 @@ import com.amazon.carbonado.ConfigurationException;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
 
+import com.amazon.carbonado.spi.TransactionManager;
+
 /**
  * Storage implementation for DBRepository.
  *
@@ -111,10 +113,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
     }
 
     protected void db_truncate(Transaction txn) throws Exception {
-        // TODO: Do this the non-deprecated way, which involves closing all
-        // database handles first.
-        //mDatabase.truncate(txn, false);
-        throw new UnsupportedOperationException();
+        mDatabase.truncate(txn, false);
     }
 
     protected boolean db_isEmpty(Transaction txn, Object database, boolean rmw) throws Exception {
@@ -224,7 +223,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
     }
 
     protected BDBCursor<Transaction, S> openCursor
-        (BDBTransactionManager<Transaction> txnMgr,
+        (TransactionManager<Transaction> txnMgr,
          byte[] startBound, boolean inclusiveStart,
          byte[] endBound, boolean inclusiveEnd,
          int maxPrefix,
