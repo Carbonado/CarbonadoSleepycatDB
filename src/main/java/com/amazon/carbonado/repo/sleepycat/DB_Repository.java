@@ -18,6 +18,7 @@
 
 package com.amazon.carbonado.repo.sleepycat;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.sleepycat.db.CheckpointConfig;
@@ -276,6 +277,16 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         }
 
         return mEnv.beginTransaction(parent, config);
+    }
+
+    @Override
+    protected Transaction txn_begin(Transaction parent, IsolationLevel level,
+                                    int timeout, TimeUnit unit)
+        throws Exception
+    {
+        Transaction txn = txn_begin(parent, level);
+        txn.setLockTimeout(unit.toMicros(timeout));
+        return txn;
     }
 
     protected Transaction txn_begin_nowait(Transaction parent, IsolationLevel level)
