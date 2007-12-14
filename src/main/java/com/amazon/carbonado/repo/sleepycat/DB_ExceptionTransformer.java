@@ -79,8 +79,8 @@ class DB_ExceptionTransformer extends ExceptionTransformer {
             if (e instanceof DeadlockException) {
                 return new PersistDeadlockException(e);
             }
-            String message = e.getMessage().toUpperCase();
-            if (message.indexOf("READ ONLY") >= 0) {
+            String message = e.getMessage();
+            if (message != null && message.toUpperCase().indexOf("READ ONLY") >= 0) {
                 return new PersistDeniedException(e);
             }
         }
