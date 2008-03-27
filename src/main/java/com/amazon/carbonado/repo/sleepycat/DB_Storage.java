@@ -209,8 +209,9 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         runDatabasePrepareForOpeningHook(config);
 
         String fileName = dbRepository.getDatabaseFileName(name);
+        String dbName = dbRepository.getDatabaseName(name);
         try {
-            return mDatabase = env.openDatabase(txn, fileName, null, config);
+            return mDatabase = env.openDatabase(txn, fileName, dbName, config);
         } catch (FileNotFoundException e) {
             throw new FileNotFoundException(e.getMessage() + ": " + fileName);
         }
@@ -219,7 +220,8 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
     protected void env_removeDatabase(Transaction txn, String databaseName) throws Exception {
         DB_Repository dbRepository = (DB_Repository) getRepository();
         String fileName = dbRepository.getDatabaseFileName(databaseName);
-        mDatabase.getEnvironment().removeDatabase(txn, fileName, null);
+        String dbName = dbRepository.getDatabaseName(databaseName);
+        mDatabase.getEnvironment().removeDatabase(txn, fileName, dbName);
     }
 
     protected BDBCursor<Transaction, S> openCursor
