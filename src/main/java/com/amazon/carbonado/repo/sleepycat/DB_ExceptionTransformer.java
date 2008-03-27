@@ -62,6 +62,16 @@ class DB_ExceptionTransformer extends ExceptionTransformer {
             if (e instanceof DeadlockException) {
                 return new FetchDeadlockException(e);
             }
+            String message = e.getMessage();
+            if (message != null) {
+                message = message.toUpperCase();
+                if (message.indexOf("DB_LOCK_NOTGRANTED") >= 0) {
+                    return new FetchTimeoutException(e);
+                }
+                if (message.indexOf("DB_LOCK_DEADLOCK") >= 0) {
+                    return new FetchDeadlockException(e);
+                }
+            }
         }
         return null;
     }
@@ -80,8 +90,17 @@ class DB_ExceptionTransformer extends ExceptionTransformer {
                 return new PersistDeadlockException(e);
             }
             String message = e.getMessage();
-            if (message != null && message.toUpperCase().indexOf("READ ONLY") >= 0) {
-                return new PersistDeniedException(e);
+            if (message != null) {
+                message = message.toUpperCase();
+                if (message.indexOf("READ ONLY") >= 0) {
+                    return new PersistDeniedException(e);
+                }
+                if (message.indexOf("DB_LOCK_NOTGRANTED") >= 0) {
+                    return new PersistTimeoutException(e);
+                }
+                if (message.indexOf("DB_LOCK_DEADLOCK") >= 0) {
+                    return new PersistDeadlockException(e);
+                }
             }
         }
         return null;
