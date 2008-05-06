@@ -64,6 +64,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         open(repository.mReadOnly);
     }
 
+    @Override
     protected boolean db_exists(Transaction txn, byte[] key, boolean rmw) throws Exception {
         DatabaseEntry keyEntry = new DatabaseEntry(key);
         DatabaseEntry dataEntry = new DatabaseEntry();
@@ -73,6 +74,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         return status != OperationStatus.NOTFOUND;
     }
 
+    @Override
     protected byte[] db_get(Transaction txn, byte[] key, boolean rmw) throws Exception {
         DatabaseEntry keyEntry = new DatabaseEntry(key);
         DatabaseEntry dataEntry = new DatabaseEntry();
@@ -84,6 +86,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         return dataEntry.getData();
     }
 
+    @Override
     protected Object db_putNoOverwrite(Transaction txn, byte[] key, byte[] value)
         throws Exception
     {
@@ -99,6 +102,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         }
     }
 
+    @Override
     protected boolean db_put(Transaction txn, byte[] key, byte[] value)
         throws Exception
     {
@@ -107,15 +111,18 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         return mDatabase.put(txn, keyEntry, dataEntry) == OperationStatus.SUCCESS;
     }
 
+    @Override
     protected boolean db_delete(Transaction txn, byte[] key) throws Exception {
         DatabaseEntry keyEntry = new DatabaseEntry(key);
         return mDatabase.delete(txn, keyEntry) == OperationStatus.SUCCESS;
     }
 
+    @Override
     protected void db_truncate(Transaction txn) throws Exception {
         mDatabase.truncate(txn, false);
     }
 
+    @Override
     protected boolean db_isEmpty(Transaction txn, Object database, boolean rmw) throws Exception {
         Cursor cursor = ((Database) database).openCursor(txn, null);
         OperationStatus status = cursor.getFirst
@@ -155,16 +162,19 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
                 return stats.getDeadlock();
             }
 
+            @Override
             public String toString() {
                 return stats.toString();
             }
         };
     }
 
+    @Override
     protected void db_close(Object database) throws Exception {
         ((Database) database).close();
     }
 
+    @Override
     protected Object env_openPrimaryDatabase(Transaction txn, String name)
         throws Exception
     {
@@ -172,7 +182,6 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
 
         Environment env = dbRepository.mEnv;
         boolean readOnly = dbRepository.mReadOnly;
-        boolean transactional = env.getConfig().getTransactional();
 
         DatabaseConfig config;
         try {
@@ -217,6 +226,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         }
     }
 
+    @Override
     protected void env_removeDatabase(Transaction txn, String databaseName) throws Exception {
         DB_Repository dbRepository = (DB_Repository) getRepository();
         String fileName = dbRepository.getDatabaseFileName(databaseName);
@@ -224,6 +234,7 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
         mDatabase.getEnvironment().removeDatabase(txn, fileName, dbName);
     }
 
+    @Override
     protected BDBCursor<Transaction, S> openCursor
         (TransactionScope<Transaction> scope,
          byte[] startBound, boolean inclusiveStart,

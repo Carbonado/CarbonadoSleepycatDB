@@ -231,6 +231,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         return ((BDBStorage) storageFor(storableType)).compact();
     }
 
+    @Override
     IsolationLevel selectIsolationLevel(com.amazon.carbonado.Transaction parent,
                                         IsolationLevel level)
     {
@@ -254,6 +255,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         return level;
     }
 
+    @Override
     protected Transaction txn_begin(Transaction parent, IsolationLevel level) throws Exception {
         TransactionConfig config;
 
@@ -289,6 +291,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         return txn;
     }
 
+    @Override
     protected Transaction txn_begin_nowait(Transaction parent, IsolationLevel level)
         throws Exception
     {
@@ -316,24 +319,28 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         return mEnv.beginTransaction(parent, config);
     }
 
+    @Override
     protected void txn_commit(Transaction txn) throws Exception {
         if (txn == null) return;
 
         txn.commit();
     }
 
+    @Override
     protected void txn_abort(Transaction txn) throws Exception {
         if (txn == null) return;
 
         txn.abort();
     }
 
+    @Override
     protected void env_checkpoint() throws Exception {
         CheckpointConfig cc = new CheckpointConfig();
         cc.setForce(true);
         mEnv.checkpoint(cc);
     }
 
+    @Override
     protected void env_checkpoint(int kBytes, int minutes) throws Exception {
         CheckpointConfig cc = new CheckpointConfig();
         cc.setKBytes(kBytes);
@@ -341,16 +348,19 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         mEnv.checkpoint(cc);
     }
 
+    @Override
     protected void env_detectDeadlocks() throws Exception {
         mEnv.detectDeadlocks(LockDetectMode.DEFAULT);
     }
 
+    @Override
     protected void env_close() throws Exception {
         if (mEnv != null) {
             mEnv.close();
         }
     }
 
+    @Override
     protected <S extends Storable> BDBStorage<Transaction, S> createBDBStorage(Class<S> type)
         throws Exception
     {

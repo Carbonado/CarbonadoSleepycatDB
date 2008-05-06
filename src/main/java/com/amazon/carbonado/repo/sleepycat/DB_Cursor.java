@@ -77,47 +77,58 @@ class DB_Cursor<S extends Storable> extends BDBCursor<Transaction, S> {
         mData = new DatabaseEntry();
     }
 
+    @Override
     protected byte[] searchKey_getData() {
         return getData(mSearchKey.getData(), mSearchKey.getSize());
     }
 
+    @Override
     protected byte[] searchKey_getDataCopy() {
         return getDataCopy(mSearchKey.getData(), mSearchKey.getSize());
     }
 
+    @Override
     protected void searchKey_setData(byte[] data) {
         mSearchKey.setData(data);
     }
 
+    @Override
     protected void searchKey_setPartial(boolean partial) {
         mSearchKey.setPartial(0, 0, partial);
     }
 
+    @Override
     protected boolean searchKey_getPartial() {
         return mSearchKey.getPartial();
     }
 
+    @Override
     protected byte[] data_getData() {
         return getData(mData.getData(), mData.getSize());
     }
 
+    @Override
     protected byte[] data_getDataCopy() {
         return getDataCopy(mData.getData(), mData.getSize());
     }
 
+    @Override
     protected void data_setPartial(boolean partial) {
         mData.setPartial(0, 0, partial);
     }
 
+    @Override
     protected boolean data_getPartial() {
         return mData.getPartial();
     }
 
+    @Override
     protected byte[] primaryKey_getData() {
         // Search key is primary key.
         return getData(mSearchKey.getData(), mSearchKey.getSize());
     }
 
+    @Override
     protected void cursor_open(Transaction txn, IsolationLevel level) throws Exception {
         CursorConfig config;
         if (level == IsolationLevel.READ_COMMITTED) {
@@ -130,38 +141,47 @@ class DB_Cursor<S extends Storable> extends BDBCursor<Transaction, S> {
         mCursor = mDatabase.openCursor(txn, config);
     }
 
+    @Override
     protected void cursor_close() throws Exception {
         mCursor.close();
     }
 
+    @Override
     protected boolean cursor_getCurrent() throws Exception {
         return mCursor.getCurrent(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
+    @Override
     protected boolean cursor_getFirst() throws Exception {
         return mCursor.getFirst(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
+    @Override
     protected boolean cursor_getLast() throws Exception {
         return mCursor.getLast(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
+    @Override
     protected boolean cursor_getSearchKeyRange() throws Exception {
         return mCursor.getSearchKeyRange(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
+    @Override
     protected boolean cursor_getNext() throws Exception {
         return mCursor.getNext(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
+    @Override
     protected boolean cursor_getNextDup() throws Exception {
         return mCursor.getNextDup(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
+    @Override
     protected boolean cursor_getPrev() throws Exception {
         return mCursor.getPrev(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
+    @Override
     protected boolean cursor_getPrevNoDup() throws Exception {
         return mCursor.getPrevNoDup(mSearchKey, mData, mLockMode) == SUCCESS;
     }
