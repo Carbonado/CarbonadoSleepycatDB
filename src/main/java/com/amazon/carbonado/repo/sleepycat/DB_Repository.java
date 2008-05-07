@@ -18,6 +18,9 @@
 
 package com.amazon.carbonado.repo.sleepycat;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -81,6 +84,35 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         }
     }
 
+    private static Map<String, Integer> cRegisterCountMap;
+
+    /**
+     * @return true if BDB environment should be opened with register option.
+     */
+    private synchronized static boolean register(String envHome) {
+        if (cRegisterCountMap == null) {
+            cRegisterCountMap = new HashMap<String, Integer>();
+        }
+        Integer count = cRegisterCountMap.get(envHome);
+        count = (count == null) ? 1 : (count + 1);
+        cRegisterCountMap.put(envHome, count);
+        return count == 1;
+    }
+
+    private synchronized static void unregister(String envHome) {
+        if (cRegisterCountMap != null) {
+            Integer count = cRegisterCountMap.get(envHome);
+            if (count != null) {
+                count -= 1;
+                if (count <= 0) {
+                    cRegisterCountMap.remove(envHome);
+                } else {
+                    cRegisterCountMap.put(envHome, count);
+                }
+            }
+        }
+    }
+
     // Default cache size, in bytes.
     private static final long DEFAULT_CACHE_SIZE = 60 * 1024 * 1024;
 
@@ -88,6 +120,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     boolean mMVCC;
     boolean mReadOnly;
     boolean mDatabasesTransactional;
+    String mRegisteredHome;
 
     /**
      * Open the repository using the given BDB repository configuration.
@@ -107,7 +140,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
      * @throws IllegalArgumentException if name or environment home is null
      * @throws RepositoryException if there is a problem opening the environment
      */
-    DB_Repository(AtomicReference<Repository> rootRef, BDBRepositoryBuilder builder, ExceptionTransformer exTransformer)
+    DB_Repository(AtomicReference<Repository> rootRef, BDBRepositoryBuilder builder,
+                  ExceptionTransformer exTransformer)
         throws RepositoryException
     {
         super(rootRef, builder, exTransformer);
@@ -160,12 +194,16 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             // BDB 4.4 feature to check if any process exited uncleanly. If so,
             // run recovery. If any other processes are attached to the
             // environment, they will get recovery exceptions. They just need
-            // to exit and restart.
+            // to exit and restart. The current process can register at most
+            // once to the BDB environment.
             try {
                 if (!builder.isPrivate()) {
-                    envConfig.setRegister(true);
-                    if (!mReadOnly) {
-                        envConfig.setRunRecovery(true);
+                    mRegisteredHome = builder.getEnvironmentHome();
+                    if (register(mRegisteredHome)) {
+                        envConfig.setRegister(true);
+                        if (!mReadOnly) {
+                            envConfig.setRunRecovery(true);
+                        }
                     }
                 }
             } catch (NoSuchMethodError e) {
@@ -201,6 +239,9 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         } catch (DatabaseException e) {
             throw DB_ExceptionTransformer.getInstance().toRepositoryException(e);
         } catch (Throwable e) {
+            if (mRegisteredHome != null) {
+                unregister(mRegisteredHome);
+            }
             String message = "Unable to open environment";
             if (e.getMessage() != null) {
                 message += ": " + e.getMessage();
@@ -357,6 +398,11 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     protected void env_close() throws Exception {
         if (mEnv != null) {
             mEnv.close();
+            String registeredHome = mRegisteredHome;
+            if (registeredHome != null) {
+                mRegisteredHome = null;
+                unregister(registeredHome);
+            }
         }
     }
 
