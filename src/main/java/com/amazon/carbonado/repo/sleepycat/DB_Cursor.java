@@ -31,7 +31,7 @@ import com.amazon.carbonado.FetchException;
 import com.amazon.carbonado.IsolationLevel;
 import com.amazon.carbonado.Storable;
 
-import com.amazon.carbonado.spi.TransactionScope;
+import com.amazon.carbonado.txn.TransactionScope;
 
 /**
  * Cursor for a primary database.
