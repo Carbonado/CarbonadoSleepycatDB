@@ -143,46 +143,58 @@ class DB_Cursor<S extends Storable> extends BDBCursor<Transaction, S> {
 
     @Override
     protected void cursor_close() throws Exception {
-        mCursor.close();
+        Cursor cursor = mCursor;
+        if (cursor != null) {
+            mCursor = null;
+            cursor.close();
+        }
     }
 
     @Override
     protected boolean cursor_getCurrent() throws Exception {
-        return mCursor.getCurrent(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getCurrent(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
     @Override
     protected boolean cursor_getFirst() throws Exception {
-        return mCursor.getFirst(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getFirst(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
     @Override
     protected boolean cursor_getLast() throws Exception {
-        return mCursor.getLast(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getLast(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
     @Override
     protected boolean cursor_getSearchKeyRange() throws Exception {
-        return mCursor.getSearchKeyRange(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getSearchKeyRange(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
     @Override
     protected boolean cursor_getNext() throws Exception {
-        return mCursor.getNext(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getNext(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
     @Override
     protected boolean cursor_getNextDup() throws Exception {
-        return mCursor.getNextDup(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getNextDup(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
     @Override
     protected boolean cursor_getPrev() throws Exception {
-        return mCursor.getPrev(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getPrev(mSearchKey, mData, mLockMode) == SUCCESS;
     }
 
     @Override
     protected boolean cursor_getPrevNoDup() throws Exception {
-        return mCursor.getPrevNoDup(mSearchKey, mData, mLockMode) == SUCCESS;
+        return cursor().getPrevNoDup(mSearchKey, mData, mLockMode) == SUCCESS;
+    }
+
+    private Cursor cursor() throws FetchException {
+        Cursor cursor = mCursor;
+        if (cursor == null) {
+            throw new FetchException("Cursor is not open");
+        }
+        return cursor;
     }
 }
