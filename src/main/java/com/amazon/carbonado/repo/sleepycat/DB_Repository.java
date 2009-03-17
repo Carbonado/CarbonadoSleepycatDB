@@ -117,6 +117,69 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         }
     }
 
+    private static EnvironmentConfig createEnvConfig(BDBRepositoryBuilder builder)
+        throws ConfigurationException
+    {
+        EnvironmentConfig envConfig;
+        try {
+            envConfig = (EnvironmentConfig) builder.getInitialEnvironmentConfig();
+        } catch (ClassCastException e) {
+            throw new ConfigurationException
+                ("Unsupported initial environment config. Must be instance of " +
+                 EnvironmentConfig.class.getName(), e);
+        }
+
+        if (envConfig == null) {
+            envConfig = new EnvironmentConfig();
+            envConfig.setTransactional(true);
+            envConfig.setAllowCreate(!builder.getReadOnly());
+            envConfig.setTxnNoSync(builder.getTransactionNoSync());
+            envConfig.setTxnWriteNoSync(builder.getTransactionWriteNoSync());
+            envConfig.setPrivate(builder.isPrivate());
+            if (builder.isMultiversion()) {
+                try {
+                    envConfig.setMultiversion(true);
+                } catch (NoSuchMethodError e) {
+                    throw new ConfigurationException
+                        ("BDB product and version does not support MVCC");
+                }
+            }
+            envConfig.setLogInMemory(builder.getLogInMemory());
+
+            envConfig.setInitializeCache(true);
+            envConfig.setInitializeLocking(true);
+
+            Long cacheSize = builder.getCacheSize();
+            envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
+
+            envConfig.setMaxLocks(10000);
+            envConfig.setMaxLockObjects(10000);
+
+            envConfig.setLockTimeout(builder.getLockTimeoutInMicroseconds());
+            envConfig.setTxnTimeout(builder.getTransactionTimeoutInMicroseconds());
+        } else {
+            if (!envConfig.getTransactional()) {
+                throw new IllegalArgumentException("EnvironmentConfig: getTransactional is false");
+            }
+
+            if (!envConfig.getInitializeCache()) {
+                throw new IllegalArgumentException
+                    ("EnvironmentConfig: getInitializeCache is false");
+            }
+
+            if (envConfig.getCacheSize() <= 0) {
+                throw new IllegalArgumentException("EnvironmentConfig: invalid cache size");
+            }
+
+            if (!envConfig.getInitializeLocking()) {
+                throw new IllegalArgumentException
+                    ("EnvironmentConfig: getInitializeLocking is false");
+            }
+        }
+
+        return envConfig;
+    }
+
     // Default cache size, in bytes.
     private static final long DEFAULT_CACHE_SIZE = 60 * 1024 * 1024;
 
@@ -150,97 +213,57 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     {
         super(rootRef, builder, exTransformer);
 
-        boolean readOnly = builder.getReadOnly();
+        if (builder.getRunFullRecovery() && !builder.getReadOnly()) {
+            // Open with recovery, close, and then re-open.
+            EnvironmentConfig envConfig = createEnvConfig(builder);
+            envConfig.setRunFatalRecovery(true);
 
-        EnvironmentConfig envConfig;
-        try {
-            envConfig = (EnvironmentConfig) builder.getInitialEnvironmentConfig();
-        } catch (ClassCastException e) {
-            throw new ConfigurationException
-                ("Unsupported initial environment config. Must be instance of " +
-                 EnvironmentConfig.class.getName(), e);
+            try {
+                new Environment(builder.getEnvironmentHomeFile(), envConfig).close();
+            } catch (DatabaseException e) {
+                throw DB_ExceptionTransformer.getInstance().toRepositoryException(e);
+            } catch (Throwable e) {
+                String message = "Unable to recover environment";
+                if (e.getMessage() != null) {
+                    message += ": " + e.getMessage();
+                }
+                throw new RepositoryException(message, e);
+            }
         }
 
-        long lockTimeout = builder.getLockTimeoutInMicroseconds();
-        long txnTimeout = builder.getTransactionTimeoutInMicroseconds();
+        EnvironmentConfig envConfig = createEnvConfig(builder);
 
-        boolean mvcc = false;
-
-        if (envConfig == null) {
-            envConfig = new EnvironmentConfig();
-            envConfig.setTransactional(true);
-            envConfig.setAllowCreate(!readOnly);
-            envConfig.setTxnNoSync(builder.getTransactionNoSync());
-            envConfig.setTxnWriteNoSync(builder.getTransactionWriteNoSync());
-            envConfig.setPrivate(builder.isPrivate());
-            if (builder.isMultiversion()) {
-                try {
-                    envConfig.setMultiversion(true);
-                    mvcc = true;
-                } catch (NoSuchMethodError e) {
-                    throw new ConfigurationException
-                        ("BDB product and version does not support MVCC");
-                }
-            }
-            envConfig.setLogInMemory(builder.getLogInMemory());
-
-            envConfig.setInitializeCache(true);
-            envConfig.setInitializeLocking(true);
-
-            Long cacheSize = builder.getCacheSize();
-            envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
-
-            envConfig.setMaxLocks(10000);
-            envConfig.setMaxLockObjects(10000);
-
-            envConfig.setLockTimeout(lockTimeout);
-            envConfig.setTxnTimeout(txnTimeout);
-
-            // BDB 4.4 feature to check if any process exited uncleanly. If so,
-            // run recovery. If any other processes are attached to the
-            // environment, they will get recovery exceptions. They just need
-            // to exit and restart. The current process can register at most
-            // once to the BDB environment.
-            try {
-                if (!builder.isPrivate()) {
-                    mRegisteredHome = builder.getEnvironmentHome();
-                    if (register(mRegisteredHome)) {
-                        envConfig.setRegister(true);
-                        if (!readOnly) {
-                            envConfig.setRunRecovery(true);
-                        }
+        // BDB 4.4 feature to check if any process exited uncleanly. If so, run
+        // recovery. If any other processes are attached to the environment,
+        // they will get recovery exceptions. They just need to exit and
+        // restart. The current process can register at most once to the BDB
+        // environment.
+        try {
+            if (!builder.isPrivate()) {
+                mRegisteredHome = builder.getEnvironmentHome();
+                if (register(mRegisteredHome)) {
+                    envConfig.setRegister(true);
+                    if (!builder.getReadOnly()) {
+                        envConfig.setRunRecovery(true);
                     }
                 }
-            } catch (NoSuchMethodError e) {
-                // Must be older BDB version.
             }
-        } else {
-            if (!envConfig.getTransactional()) {
-                throw new IllegalArgumentException("EnvironmentConfig: getTransactional is false");
-            }
-
-            if (!envConfig.getInitializeCache()) {
-                throw new IllegalArgumentException
-                    ("EnvironmentConfig: getInitializeCache is false");
-            }
-
-            if (envConfig.getCacheSize() <= 0) {
-                throw new IllegalArgumentException("EnvironmentConfig: invalid cache size");
-            }
-
-            if (!envConfig.getInitializeLocking()) {
-                throw new IllegalArgumentException
-                    ("EnvironmentConfig: getInitializeLocking is false");
-            }
+        } catch (NoSuchMethodError e) {
+            // Must be older BDB version.
         }
 
+        boolean mvcc;
+        try {
+            mvcc = envConfig.getMultiversion();
+        } catch (NoSuchMethodError e) {
+            mvcc = false;
+        }
         mMVCC = mvcc;
 
         boolean databasesTransactional = envConfig.getTransactional();
         if (builder.getDatabasesTransactional() != null) {
             databasesTransactional = builder.getDatabasesTransactional();
         }
-
         mDatabasesTransactional = databasesTransactional;
 
         try {
@@ -258,13 +281,16 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             throw new RepositoryException(message, e);
         }
 
+        boolean readOnly = builder.getReadOnly();
         if (!readOnly && !builder.getDataHomeFile().canWrite()) {
             // Allow environment to be created, but databases are read-only.
             // This is only significant if data home differs from environment home.
             readOnly = true;
         }
-
         mReadOnly = readOnly;
+
+        long lockTimeout = envConfig.getLockTimeout();
+        long txnTimeout = envConfig.getTxnTimeout();
 
         long deadlockInterval = Math.min(lockTimeout, txnTimeout);
         // Make sure interval is no smaller than 0.5 seconds.
