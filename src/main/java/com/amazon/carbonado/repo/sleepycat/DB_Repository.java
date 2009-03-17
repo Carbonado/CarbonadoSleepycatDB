@@ -18,8 +18,12 @@
 
 package com.amazon.carbonado.repo.sleepycat;
 
+import java.io.File;
+
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -117,10 +121,10 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     private static final long DEFAULT_CACHE_SIZE = 60 * 1024 * 1024;
 
     final Environment mEnv;
-    boolean mMVCC;
-    boolean mReadOnly;
-    boolean mDatabasesTransactional;
-    String mRegisteredHome;
+    final boolean mMVCC;
+    final boolean mReadOnly;
+    final boolean mDatabasesTransactional;
+    volatile String mRegisteredHome;
 
     /**
      * Open the repository using the given BDB repository configuration.
@@ -146,7 +150,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     {
         super(rootRef, builder, exTransformer);
 
-        mReadOnly = builder.getReadOnly();
+        boolean readOnly = builder.getReadOnly();
 
         EnvironmentConfig envConfig;
         try {
@@ -160,17 +164,19 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         long lockTimeout = builder.getLockTimeoutInMicroseconds();
         long txnTimeout = builder.getTransactionTimeoutInMicroseconds();
 
+        boolean mvcc = false;
+
         if (envConfig == null) {
             envConfig = new EnvironmentConfig();
             envConfig.setTransactional(true);
-            envConfig.setAllowCreate(!mReadOnly);
+            envConfig.setAllowCreate(!readOnly);
             envConfig.setTxnNoSync(builder.getTransactionNoSync());
             envConfig.setTxnWriteNoSync(builder.getTransactionWriteNoSync());
             envConfig.setPrivate(builder.isPrivate());
             if (builder.isMultiversion()) {
                 try {
                     envConfig.setMultiversion(true);
-                    mMVCC = true;
+                    mvcc = true;
                 } catch (NoSuchMethodError e) {
                     throw new ConfigurationException
                         ("BDB product and version does not support MVCC");
@@ -181,7 +187,6 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             envConfig.setInitializeCache(true);
             envConfig.setInitializeLocking(true);
 
-            envConfig.setLogAutoRemove(!mReadOnly);
             Long cacheSize = builder.getCacheSize();
             envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
 
@@ -201,7 +206,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                     mRegisteredHome = builder.getEnvironmentHome();
                     if (register(mRegisteredHome)) {
                         envConfig.setRegister(true);
-                        if (!mReadOnly) {
+                        if (!readOnly) {
                             envConfig.setRunRecovery(true);
                         }
                     }
@@ -229,10 +234,14 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             }
         }
 
-        mDatabasesTransactional = envConfig.getTransactional();
+        mMVCC = mvcc;
+
+        boolean databasesTransactional = envConfig.getTransactional();
         if (builder.getDatabasesTransactional() != null) {
-            mDatabasesTransactional = builder.getDatabasesTransactional();
+            databasesTransactional = builder.getDatabasesTransactional();
         }
+
+        mDatabasesTransactional = databasesTransactional;
 
         try {
             mEnv = new Environment(builder.getEnvironmentHomeFile(), envConfig);
@@ -249,11 +258,13 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             throw new RepositoryException(message, e);
         }
 
-        if (!mReadOnly && !builder.getDataHomeFile().canWrite()) {
+        if (!readOnly && !builder.getDataHomeFile().canWrite()) {
             // Allow environment to be created, but databases are read-only.
             // This is only significant if data home differs from environment home.
-            mReadOnly = true;
+            readOnly = true;
         }
+
+        mReadOnly = readOnly;
 
         long deadlockInterval = Math.min(lockTimeout, txnTimeout);
         // Make sure interval is no smaller than 0.5 seconds.
@@ -379,6 +390,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         CheckpointConfig cc = new CheckpointConfig();
         cc.setForce(true);
         mEnv.checkpoint(cc);
+        removeOldLogFiles();
     }
 
     @Override
@@ -387,6 +399,15 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         cc.setKBytes(kBytes);
         cc.setMinutes(minutes);
         mEnv.checkpoint(cc);
+        removeOldLogFiles();
+    }
+
+    private void removeOldLogFiles() throws Exception {
+        synchronized (mBackupLock) {
+            if (mBackupCount == 0) {
+                mEnv.removeOldLogFiles();
+            }
+        }
     }
 
     @Override
@@ -411,5 +432,41 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         throws Exception
     {
         return new DB_Storage<S>(this, type);
+    }
+
+    @Override
+    void enterBackupMode() throws Exception {
+        // Nothing special to do.
+    }
+
+    @Override
+    void exitBackupMode() throws Exception {
+        // Nothing special to do.
+    }
+
+    @Override
+    File[] backupFiles() throws Exception {
+        Set<File> dbFileSet = new LinkedHashSet<File>();
+
+        for (String dbName : getAllDatabaseNames()) {
+            File file = new File(getDatabaseFileName(dbName));
+            if (!file.isAbsolute()) {
+                file = new File(mEnvHome, file.getPath());
+            }
+            if (!dbFileSet.contains(file) && file.exists()) {
+                dbFileSet.add(file);
+            }
+        }
+
+        for (File file : mEnv.getArchiveLogFiles(true)) {
+            if (!file.isAbsolute()) {
+                file = new File(mEnvHome, file.getPath());
+            }
+            if (!dbFileSet.contains(file) && file.exists()) {
+                dbFileSet.add(file);
+            }
+        }
+
+        return dbFileSet.toArray(new File[dbFileSet.size()]);
     }
 }
