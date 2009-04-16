@@ -183,6 +183,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     // Default cache size, in bytes.
     private static final long DEFAULT_CACHE_SIZE = 60 * 1024 * 1024;
 
+    private final BDBProduct mProduct;
+
     final Environment mEnv;
     final boolean mMVCC;
     final boolean mReadOnly;
@@ -212,6 +214,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         throws RepositoryException
     {
         super(rootRef, builder, exTransformer);
+
+        mProduct = builder.getBDBProduct();
 
         if (builder.getRunFullRecovery() && !builder.getReadOnly()) {
             // Open with recovery, close, and then re-open.
@@ -301,6 +305,22 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
 
     public Object getEnvironment() {
         return mEnv;
+    }
+
+    public BDBProduct getBDBProduct() {
+        return mProduct;
+    }
+
+    public int[] getVersion() {
+        return new int[] {mEnv.getVersionMajor(), mEnv.getVersionMinor(), mEnv.getVersionPatch()};
+    }
+
+    public File getHome() {
+        return mEnvHome;
+    }
+
+    public File getDataHome() {
+        return mDataHome == null ? mEnvHome : mDataHome;
     }
 
     public <S extends Storable> Result<S> compact(Class<S> storableType)
