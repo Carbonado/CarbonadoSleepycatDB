@@ -189,6 +189,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     final boolean mMVCC;
     final boolean mReadOnly;
     final boolean mDatabasesTransactional;
+    final Boolean mChecksum;
     volatile String mRegisteredHome;
 
     /**
@@ -270,6 +271,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         }
         mDatabasesTransactional = databasesTransactional;
 
+        mChecksum = builder.getChecksumEnabled();
+
         try {
             mEnv = new Environment(builder.getEnvironmentHomeFile(), envConfig);
         } catch (DatabaseException e) {
@@ -300,7 +303,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         // Make sure interval is no smaller than 0.5 seconds.
         deadlockInterval = Math.max(500000, deadlockInterval) / 1000;
 
-        start(builder.getCheckpointInterval(), deadlockInterval);
+        start(builder.getCheckpointInterval(), deadlockInterval, builder);
     }
 
     public Object getEnvironment() {

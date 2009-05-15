@@ -200,6 +200,9 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
             if (pageSize != null) {
                 config.setPageSize(pageSize);
             }
+            if (dbRepository.mChecksum != null) {
+                config.setChecksum(dbRepository.mChecksum);
+            }
         } else {
             if (DatabaseType.BTREE != config.getType()) {
                 throw new IllegalArgumentException("DatabaseConfig: database type is not BTREE");
