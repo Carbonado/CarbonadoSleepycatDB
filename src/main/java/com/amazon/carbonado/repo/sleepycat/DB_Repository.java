@@ -149,6 +149,15 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             envConfig.setInitializeCache(true);
             envConfig.setInitializeLocking(true);
 
+            // This class used to create the environment without initializing
+            // the logging subsystem. When opening an existing environment the
+            // requested subsystems must be a subset of the ones it was created
+            // with. Initialize logging only when creating a new environment to
+            // be backward compatible.
+            if (!new File(builder.getEnvironmentHomeFile(), "__db.001").exists()) {
+                envConfig.setInitializeLogging(true);
+            }
+
             Long cacheSize = builder.getCacheSize();
             envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
 
