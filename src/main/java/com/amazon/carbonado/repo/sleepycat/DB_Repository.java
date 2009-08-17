@@ -445,24 +445,26 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
 
     @Override
     protected void env_checkpoint() throws Exception {
-        CheckpointConfig cc = new CheckpointConfig();
-        cc.setForce(true);
-        mEnv.checkpoint(cc);
-        removeOldLogFiles();
+        // Disable checkpoints during hot backup. BDB documentation indicates that
+        // checkpoints can run during backup, but testing indicates otherwise.
+        synchronized (mBackupLock) {
+            if (mBackupCount == 0) {
+                CheckpointConfig cc = new CheckpointConfig();
+                cc.setForce(true);
+                mEnv.checkpoint(cc);
+                mEnv.removeOldLogFiles();
+            }
+        }
     }
 
     @Override
     protected void env_checkpoint(int kBytes, int minutes) throws Exception {
-        CheckpointConfig cc = new CheckpointConfig();
-        cc.setKBytes(kBytes);
-        cc.setMinutes(minutes);
-        mEnv.checkpoint(cc);
-        removeOldLogFiles();
-    }
-
-    private void removeOldLogFiles() throws Exception {
         synchronized (mBackupLock) {
             if (mBackupCount == 0) {
+                CheckpointConfig cc = new CheckpointConfig();
+                cc.setKBytes(kBytes);
+                cc.setMinutes(minutes);
+                mEnv.checkpoint(cc);
                 mEnv.removeOldLogFiles();
             }
         }
@@ -494,7 +496,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
 
     @Override
     void enterBackupMode() throws Exception {
-        // Nothing special to do.
+        forceCheckpoint();
     }
 
     @Override
