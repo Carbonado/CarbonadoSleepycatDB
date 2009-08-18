@@ -38,6 +38,7 @@ import com.sleepycat.db.TransactionConfig;
 
 import com.amazon.carbonado.ConfigurationException;
 import com.amazon.carbonado.IsolationLevel;
+import com.amazon.carbonado.PersistDeniedException;
 import com.amazon.carbonado.Repository;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
@@ -453,6 +454,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                 cc.setForce(true);
                 mEnv.checkpoint(cc);
                 mEnv.removeOldLogFiles();
+            } else {
+                throw new PersistDeniedException("Hot backup in progress");
             }
         }
     }
