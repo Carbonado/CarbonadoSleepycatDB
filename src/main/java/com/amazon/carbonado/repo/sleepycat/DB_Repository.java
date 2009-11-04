@@ -147,6 +147,15 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             }
             envConfig.setLogInMemory(builder.getLogInMemory());
 
+            try {
+                Integer maxSize = builder.getLogFileMaxSize();
+                if (maxSize != null) {
+                    envConfig.setMaxLogFileSize(maxSize);
+                }
+            } catch (NoSuchMethodError e) {
+                // Carbonado package might be older.
+            }
+
             envConfig.setInitializeCache(true);
             envConfig.setInitializeLocking(true);
 
