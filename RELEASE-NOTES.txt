@@ -1,5 +1,5 @@
-CarbonadoSleepycatDB version 1.2
---------------------------------
+CarbonadoSleepycatDB version 1.2.1
+----------------------------------
 
 Carbonado is an extensible, high performance persistence abstraction layer for
 Java applications with a relational view to the underlying persistence
