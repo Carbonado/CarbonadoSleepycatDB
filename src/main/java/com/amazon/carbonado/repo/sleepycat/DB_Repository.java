@@ -462,7 +462,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                 CheckpointConfig cc = new CheckpointConfig();
                 cc.setForce(true);
                 mEnv.checkpoint(cc);
-                mEnv.removeOldLogFiles();
+                removeOldLogFiles();
             } else {
                 throw new PersistDeniedException("Hot backup in progress");
             }
@@ -477,9 +477,21 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                 cc.setKBytes(kBytes);
                 cc.setMinutes(minutes);
                 mEnv.checkpoint(cc);
-                mEnv.removeOldLogFiles();
+                removeOldLogFiles();
             }
         }
+    }
+
+    private void removeOldLogFiles() throws Exception {
+        try {
+            if (mKeepOldLogFiles) {
+                return;
+            }
+        } catch (NoSuchFieldError e) {
+            // Carbonado package might be older.
+        }
+
+        mEnv.removeOldLogFiles();
     }
 
     @Override
