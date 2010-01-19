@@ -137,6 +137,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             envConfig.setTxnNoSync(builder.getTransactionNoSync());
             envConfig.setTxnWriteNoSync(builder.getTransactionWriteNoSync());
             envConfig.setPrivate(builder.isPrivate());
+            envConfig.setRunRecovery(builder.isPrivate() && !builder.getReadOnly());
             if (builder.isMultiversion()) {
                 try {
                     envConfig.setMultiversion(true);
