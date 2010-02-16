@@ -241,6 +241,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         if (builder.getRunFullRecovery() && !builder.getReadOnly()) {
             // Open with recovery, close, and then re-open.
             EnvironmentConfig envConfig = createEnvConfig(builder);
+            envConfig.setRunRecovery(false);
             envConfig.setRunFatalRecovery(true);
 
             try {
