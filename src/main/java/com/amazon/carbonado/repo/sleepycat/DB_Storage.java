@@ -36,6 +36,8 @@ import com.amazon.carbonado.ConfigurationException;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
 
+import com.amazon.carbonado.raw.StorableCodecFactory;
+
 import com.amazon.carbonado.txn.TransactionScope;
 
 /**
@@ -119,7 +121,28 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
 
     @Override
     protected void db_truncate(Transaction txn) throws Exception {
-        mDatabase.truncate(txn, false);
+        if (txn != null) {
+            mDatabase.truncate(txn, false);
+            return;
+        }
+
+
+        DB_Repository dbRepository = (DB_Repository) getRepository();
+
+        String fileName, dbName;
+        {
+            StorableCodecFactory codecFactory = dbRepository.getStorableCodecFactory();
+            String name = codecFactory.getStorageName(getStorableType());
+            if (name == null) {
+                name = getStorableType().getName();
+            }
+            fileName = dbRepository.getDatabaseFileName(name);
+            dbName = dbRepository.getDatabaseName(name);
+        }
+
+        close();
+        dbRepository.mEnv.removeDatabase(null, fileName, dbName);
+        open(false, null, false);
     }
 
     @Override
