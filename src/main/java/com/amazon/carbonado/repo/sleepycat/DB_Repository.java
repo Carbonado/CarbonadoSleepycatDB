@@ -465,7 +465,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                 CheckpointConfig cc = new CheckpointConfig();
                 cc.setForce(true);
                 mEnv.checkpoint(cc);
-		removeOldLogFiles();
+                removeOldLogFiles();
             } else {
                 throw new PersistDeniedException("Hot backup in progress");
             }
@@ -480,7 +480,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                 cc.setKBytes(kBytes);
                 cc.setMinutes(minutes);
                 mEnv.checkpoint(cc);
-		removeOldLogFiles();
+                removeOldLogFiles();
             }
         }
     }
@@ -524,10 +524,10 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     @Override
     void enterBackupMode(boolean deleteOldLogFiles) throws Exception {
         forceCheckpoint();
-	if (deleteOldLogFiles && mBackupCount == 0 && mIncrementalBackupCount == 0) {
-	    // if we are not auto-deleting old log files delete files if prompted
-	    deleteOldLogFiles(-1); // to delete all
-	}
+        if (deleteOldLogFiles && mBackupCount == 0 && mIncrementalBackupCount == 0) {
+            // if we are not auto-deleting old log files delete files if prompted
+            deleteOldLogFiles(-1); // to delete all
+        }
     }
 
     @Override
@@ -536,10 +536,19 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     }
 
     @Override
-    void enterIncrementalBackupMode(long lastLogNumber, boolean deleteOldLogFiles) throws Exception {
-	if (deleteOldLogFiles && lastLogNumber > 0 && mBackupCount == 0 && mIncrementalBackupCount == 0) {
-	    deleteOldLogFiles(lastLogNumber);
-	}
+    void enterIncrementalBackupMode(long lastLogNumber, boolean deleteOldLogFiles)
+        throws Exception
+    {
+        if (!mKeepOldLogFiles) {
+            throw new IllegalStateException
+                ("Incremental backup requires old log files to be kept");
+        }
+        mEnv.logFlush(null);
+        if (deleteOldLogFiles && lastLogNumber > 0 &&
+            mBackupCount == 0 && mIncrementalBackupCount == 0)
+        {
+            deleteOldLogFiles(lastLogNumber);
+        }
     }
 
     @Override
@@ -561,64 +570,63 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             }
         }
 
-	// Find highest log number - all logs before this can be removed if 
-	// user specifies so in the future
-	long maxLogNum = 0;
+        // Find highest log number - all logs before this can be removed if 
+        // user specifies so in the future.
+        long maxLogNum = 0;
         for (File file : mEnv.getArchiveLogFiles(true)) {
-	    long currLogNum =  getLogFileNum(file.getName());
-	    if (!file.isAbsolute()) {
+            long currLogNum =  getLogFileNum(file.getName());
+            if (!file.isAbsolute()) {
                 file = new File(mEnvHome, file.getPath());
             }
             if (!dbFileSet.contains(file) && file.exists()) {
-		if (currLogNum > maxLogNum) {
-		    maxLogNum = currLogNum;
-		}
                 dbFileSet.add(file);
+                if (currLogNum > maxLogNum) {
+                    maxLogNum = currLogNum;
+                }
             }
         }
 
-	newLastLogNum[0] = maxLogNum;
+        newLastLogNum[0] = maxLogNum;
 
         return dbFileSet.toArray(new File[dbFileSet.size()]);
     }
 
     @Override
-    File[] incrementalBackup(long lastLogNum,
-			     long[] newLastLogNum) throws Exception {
-	Set<File> dbFileSet = new LinkedHashSet<File>();	
-	long maxLogNum = 0;
-	for (File file : mEnv.getArchiveLogFiles(true)) {
-	    long currLogNum =  getLogFileNum(file.getName());
-	    if (currLogNum >= lastLogNum) { // only copy new files
-		if  (!file.isAbsolute()) {
-		    file = new File(mEnvHome, file.getPath());
-		}
-		if (!dbFileSet.contains(file) && file.exists()) {
-		    dbFileSet.add(file);	   
-		    if (currLogNum > maxLogNum) {
-			maxLogNum = currLogNum;
-		    }
-		}
-	    } 
-	}
+    File[] incrementalBackup(long lastLogNum, long[] newLastLogNum) throws Exception {
+        Set<File> dbFileSet = new LinkedHashSet<File>();        
+        long maxLogNum = 0;
+        for (File file : mEnv.getArchiveLogFiles(true)) {
+            long currLogNum = getLogFileNum(file.getName());
+            if (currLogNum >= lastLogNum) { // only copy new files
+                if (!file.isAbsolute()) {
+                    file = new File(mEnvHome, file.getPath());
+                }
+                if (!dbFileSet.contains(file) && file.exists()) {
+                    dbFileSet.add(file);           
+                    if (currLogNum > maxLogNum) {
+                        maxLogNum = currLogNum;
+                    }
+                }
+            } 
+        }
 
-	newLastLogNum[0] = maxLogNum;
+        newLastLogNum[0] = maxLogNum;
 
-	return dbFileSet.toArray(new File[dbFileSet.size()]);
+        return dbFileSet.toArray(new File[dbFileSet.size()]);
     }
 
     private void deleteOldLogFiles(long maxLogNum) throws Exception {
-	for (File file : mEnv.getArchiveLogFiles(false)) {
-	    long currLogNum = getLogFileNum(file.getName());
-	    if (currLogNum < maxLogNum) {
-		// file no longer in use so delete it
-		file.delete();
-	    }
-	}
+        for (File file : mEnv.getArchiveLogFiles(false)) {
+            long currLogNum = getLogFileNum(file.getName());
+            if (currLogNum < maxLogNum) {
+                // file no longer in use so delete it
+                file.delete();
+            }
+        }
     }
 
     private long getLogFileNum(String fileName) {
-	int ix = fileName.indexOf(".");
-	return Integer.parseInt(fileName.substring(ix + 1));
+        int ix = fileName.indexOf(".");
+        return Long.parseLong(fileName.substring(ix + 1));
     }
 }
