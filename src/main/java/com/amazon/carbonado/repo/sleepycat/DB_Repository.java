@@ -563,7 +563,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         for (String dbName : getAllDatabaseNames()) {
             File file = new File(getDatabaseFileName(dbName));
             if (!file.isAbsolute()) {
-                file = new File(mEnvHome, file.getPath());
+                file = new File(mDataHome, file.getPath());
             }
             if (!dbFileSet.contains(file) && file.exists()) {
                 dbFileSet.add(file);
@@ -574,7 +574,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         // user specifies so in the future.
         long maxLogNum = 0;
         for (File file : mEnv.getArchiveLogFiles(true)) {
-            long currLogNum =  getLogFileNum(file.getName());
+            long currLogNum = getLogFileNum(file.getName());
             if (!file.isAbsolute()) {
                 file = new File(mEnvHome, file.getPath());
             }
