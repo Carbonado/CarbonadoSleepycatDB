@@ -458,16 +458,12 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
 
     @Override
     protected void env_checkpoint() throws Exception {
-        // Disable checkpoints during hot backup. BDB documentation indicates that
-        // checkpoints can run during backup, but testing indicates otherwise.
         synchronized (mBackupLock) {
+            CheckpointConfig cc = new CheckpointConfig();
+            cc.setForce(true);
+            mEnv.checkpoint(cc);
             if (mBackupCount == 0) {
-                CheckpointConfig cc = new CheckpointConfig();
-                cc.setForce(true);
-                mEnv.checkpoint(cc);
                 removeOldLogFiles();
-            } else {
-                throw new PersistDeniedException("Hot backup in progress");
             }
         }
     }
@@ -475,11 +471,11 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     @Override
     protected void env_checkpoint(int kBytes, int minutes) throws Exception {
         synchronized (mBackupLock) {
+            CheckpointConfig cc = new CheckpointConfig();
+            cc.setKBytes(kBytes);
+            cc.setMinutes(minutes);
+            mEnv.checkpoint(cc);
             if (mBackupCount == 0) {
-                CheckpointConfig cc = new CheckpointConfig();
-                cc.setKBytes(kBytes);
-                cc.setMinutes(minutes);
-                mEnv.checkpoint(cc);
                 removeOldLogFiles();
             }
         }
@@ -557,7 +553,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     }
 
     @Override
-    File[] backupFiles(long[] newLastLogNum) throws Exception {
+    File[] backupDataFiles() throws Exception {
         Set<File> dbFileSet = new LinkedHashSet<File>();
 
         for (String dbName : getAllDatabaseNames()) {
@@ -569,6 +565,13 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
                 dbFileSet.add(file);
             }
         }
+
+        return dbFileSet.toArray(new File[dbFileSet.size()]);
+    }
+
+    @Override
+    File[] backupLogFiles(long[] newLastLogNum) throws Exception {
+        Set<File> dbFileSet = new LinkedHashSet<File>();
 
         // Find highest log number - all logs before this can be removed if 
         // user specifies so in the future.
