@@ -481,6 +481,11 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         }
     }
 
+    @Override
+    protected void env_sync() throws Exception {
+        mEnv.logFlush(null);
+    }
+
     private void removeOldLogFiles() throws Exception {
         try {
             if (mKeepOldLogFiles) {
