@@ -84,7 +84,7 @@
     <dependency>
       <groupId>com.sleepycat</groupId>
       <artifactId>db</artifactId>
-      <version>[4.6,)</version>
+      <version>[4.5,)</version>
     </dependency>
   </dependencies>
 
