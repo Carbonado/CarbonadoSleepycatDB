@@ -166,7 +166,9 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             // requested subsystems must be a subset of the ones it was created
             // with. Initialize logging only when creating a new environment to
             // be backward compatible.
-            if (!new File(builder.getEnvironmentHomeFile(), "__db.001").exists()) {
+            if (builder.isPrivate() ||
+                !new File(builder.getEnvironmentHomeFile(), "__db.001").exists())
+            {
                 envConfig.setInitializeLogging(true);
             }
 
@@ -244,6 +246,10 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             EnvironmentConfig envConfig = createEnvConfig(builder);
             envConfig.setRunRecovery(false);
             envConfig.setRunFatalRecovery(true);
+            envConfig.setPrivate(true);
+            // Always ensure this option is enabled, cirumventing the backwards
+            // compatible logic in the createEnvConfig method.
+            envConfig.setInitializeLogging(true);
 
             try {
                 new Environment(builder.getEnvironmentHomeFile(), envConfig).close();
