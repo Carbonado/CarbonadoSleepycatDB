@@ -219,6 +219,9 @@ class DB_Storage<S extends Storable> extends BDBStorage<Transaction, S> {
             config = new DatabaseConfig();
             config.setType(DatabaseType.BTREE);
             config.setSortedDuplicates(false);
+            if (dbRepository.mReverseSplitOff) {
+                config.setReverseSplitOff(true);
+            }
             Integer pageSize = dbRepository.getDatabasePageSize(getStorableType());
             if (pageSize != null) {
                 config.setPageSize(pageSize);

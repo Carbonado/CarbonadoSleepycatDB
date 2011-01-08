@@ -221,6 +221,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     final boolean mMVCC;
     final boolean mReadOnly;
     final boolean mDatabasesTransactional;
+    final boolean mReverseSplitOff;
     final Boolean mChecksum;
     volatile String mRegisteredHome;
 
@@ -307,6 +308,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             databasesTransactional = builder.getDatabasesTransactional();
         }
         mDatabasesTransactional = databasesTransactional;
+
+        mReverseSplitOff = builder.isReverseSplitOff();
 
         mChecksum = builder.getChecksumEnabled();
 
