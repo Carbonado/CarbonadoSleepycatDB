@@ -137,9 +137,15 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             envConfig.setAllowCreate(!builder.getReadOnly());
             envConfig.setTxnNoSync(builder.getTransactionNoSync());
             envConfig.setTxnWriteNoSync(builder.getTransactionWriteNoSync());
-            if (builder.getTransactionMaxActive() != null) {
-                envConfig.setTxnMaxActive(builder.getTransactionMaxActive());
+
+            try {
+                if (builder.getTransactionMaxActive() != null) {
+                    envConfig.setTxnMaxActive(builder.getTransactionMaxActive());
+                }
+            } catch (NoSuchMethodError e) {
+                // Carbonado package might be older.
             }
+
             envConfig.setPrivate(builder.isPrivate());
             envConfig.setRunRecovery(builder.isPrivate() && !builder.getReadOnly());
             if (builder.isMultiversion()) {
@@ -187,8 +193,17 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             Long cacheSize = builder.getCacheSize();
             envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
 
-            envConfig.setMaxLocks(10000);
-            envConfig.setMaxLockObjects(10000);
+            int maxLocks = 10000;
+            try {
+                if (builder.getMaxLocks() != null) {
+                    maxLocks = builder.getMaxLocks();
+                }
+            } catch (NoSuchMethodError e) {
+                // Carbonado package might be older.
+            }
+            envConfig.setMaxLocks(maxLocks);
+            envConfig.setMaxLockObjects(maxLocks);
+            envConfig.setMaxLockers(maxLocks);
 
             envConfig.setLockTimeout(builder.getLockTimeoutInMicroseconds());
             envConfig.setTxnTimeout(builder.getTransactionTimeoutInMicroseconds());
