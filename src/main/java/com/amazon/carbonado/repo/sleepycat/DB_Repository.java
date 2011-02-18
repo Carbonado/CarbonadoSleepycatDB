@@ -19,6 +19,7 @@
 package com.amazon.carbonado.repo.sleepycat;
 
 import java.io.File;
+import java.io.PrintStream;
 
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -29,12 +30,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.sleepycat.db.CheckpointConfig;
+import com.sleepycat.db.Database;
+import com.sleepycat.db.DatabaseConfig;
 import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.DatabaseType;
 import com.sleepycat.db.Environment;
 import com.sleepycat.db.EnvironmentConfig;
 import com.sleepycat.db.LockDetectMode;
 import com.sleepycat.db.Transaction;
 import com.sleepycat.db.TransactionConfig;
+import com.sleepycat.db.VerifyConfig;
 
 import com.amazon.carbonado.ConfigurationException;
 import com.amazon.carbonado.IsolationLevel;
@@ -397,6 +402,29 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
         throws RepositoryException
     {
         return ((BDBStorage) storageFor(storableType)).compact();
+    }
+
+    @Override
+    boolean verify(PrintStream out) throws Exception {
+        boolean result = true;
+
+        for (File file : backupDataFiles()) {
+            DatabaseConfig dbConfig = new DatabaseConfig();
+            dbConfig.setType(DatabaseType.BTREE);
+            dbConfig.setSortedDuplicates(false);
+            if (mChecksum != null) {
+                dbConfig.setChecksum(mChecksum);
+            }
+            dbConfig.setTransactional(mDatabasesTransactional);
+            dbConfig.setReadOnly(true);
+            dbConfig.setAllowCreate(false);
+
+            VerifyConfig vConfig = new VerifyConfig();
+
+            result &= Database.verify(file.getPath(), null, out, vConfig, dbConfig);
+        }
+
+        return result;
     }
 
     @Override
