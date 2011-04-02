@@ -198,6 +198,15 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             Long cacheSize = builder.getCacheSize();
             envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
 
+            // Use the caller specified log region size, or 0, which defaults to the
+            // BDB default size (documentation suggests this is currently 60KB).
+            try {
+                Integer logRegionSize = builder.getLogRegionSize();
+                envConfig.setLogRegionSize(logRegionSize != null ? logRegionSize : 0);
+            } catch (NoSuchMethodError e) {
+                // Carbonado package might be older.
+            }
+
             int maxLocks = 10000;
             try {
                 if (builder.getMaxLocks() != null) {
