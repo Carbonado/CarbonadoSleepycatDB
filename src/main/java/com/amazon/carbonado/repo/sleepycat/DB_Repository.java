@@ -61,6 +61,8 @@ import com.amazon.carbonado.spi.ExceptionTransformer;
  * @author Olga Kuznetsova
  */
 class DB_Repository extends BDBRepository<Transaction> implements CompactionCapability {
+    private static final int DEFAULT_LOG_REGION_SIZE = 256 * 1024;
+
     private static final TransactionConfig
         TXN_READ_UNCOMMITTED,        TXN_READ_COMMITTED,        TXN_REPEATABLE_READ,
         TXN_READ_UNCOMMITTED_NOWAIT, TXN_READ_COMMITTED_NOWAIT, TXN_REPEATABLE_READ_NOWAIT;
@@ -198,11 +200,11 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             Long cacheSize = builder.getCacheSize();
             envConfig.setCacheSize(cacheSize != null ? cacheSize : DEFAULT_CACHE_SIZE);
 
-            // Use the caller specified log region size, or 0, which defaults to the
-            // BDB default size (documentation suggests this is currently 60KB).
+            // Use the caller specified log region size, or our own default.
             try {
                 Integer logRegionSize = builder.getLogRegionSize();
-                envConfig.setLogRegionSize(logRegionSize != null ? logRegionSize : 0);
+                envConfig.setLogRegionSize
+                    (logRegionSize != null ? logRegionSize : DEFAULT_LOG_REGION_SIZE);
             } catch (NoSuchMethodError e) {
                 // Carbonado package might be older.
             }
