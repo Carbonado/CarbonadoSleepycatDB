@@ -97,6 +97,15 @@ class DBX_Repository extends DB_Repository {
 
     @Override
     protected Transaction txn_begin(Transaction parent, IsolationLevel level) throws Exception {
+        // This isolation level is typically only used for reads, so allow
+        // concurrent access. This can be used as a backdoor which allows multiple
+        // transactions, by creating a child transaction with a higher isolation level.
+        // Considering that the DBX repository is a hack anyhow, I don't really care.
+        // BDB: Supports high concurrency, but only for single-threaded applications.
+        if (level == IsolationLevel.READ_UNCOMMITTED) {
+            return super.txn_begin(parent, level);
+        }
+
         Lock lock = acquire(parent);
         try {
             Transaction txn = super.txn_begin(parent, level);
@@ -115,6 +124,10 @@ class DBX_Repository extends DB_Repository {
     protected Transaction txn_begin_nowait(Transaction parent, IsolationLevel level)
         throws Exception
     {
+        if (level == IsolationLevel.READ_UNCOMMITTED) {
+            return super.txn_begin_nowait(parent, level);
+        }
+
         Lock lock = acquire(parent);
         try {
             Transaction txn = super.txn_begin_nowait(parent, level);
