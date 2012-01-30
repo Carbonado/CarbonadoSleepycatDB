@@ -32,6 +32,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.sleepycat.db.Transaction;
 
+import com.amazon.carbonado.PersistTimeoutException;
 import com.amazon.carbonado.IsolationLevel;
 import com.amazon.carbonado.Repository;
 import com.amazon.carbonado.RepositoryException;
@@ -106,9 +107,37 @@ class DBX_Repository extends DB_Repository {
             return super.txn_begin(parent, level);
         }
 
-        Lock lock = acquire(parent);
+        Lock lock = acquire(parent, mLockTimeoutMicros);
         try {
             Transaction txn = super.txn_begin(parent, level);
+            if (lock != null) {
+                addActiveTxn(txn);
+            }
+            return txn;
+        } finally {
+            if (lock != null) {
+                lock.unlock();
+            }
+        }
+    }
+
+    @Override
+    protected Transaction txn_begin(Transaction parent, IsolationLevel level,
+                                    int timeout, TimeUnit unit)
+        throws Exception
+    {
+        long timeoutMicros = unit.toMicros(timeout);
+
+        if (level == IsolationLevel.READ_UNCOMMITTED) {
+            Transaction txn = super.txn_begin(parent, level);
+            txn.setLockTimeout(timeoutMicros);
+            return txn;
+        }
+
+        Lock lock = acquire(parent, timeoutMicros);
+        try {
+            Transaction txn = super.txn_begin(parent, level);
+            txn.setLockTimeout(timeoutMicros);
             if (lock != null) {
                 addActiveTxn(txn);
             }
@@ -128,7 +157,7 @@ class DBX_Repository extends DB_Repository {
             return super.txn_begin_nowait(parent, level);
         }
 
-        Lock lock = acquire(parent);
+        Lock lock = acquire(parent, 0);
         try {
             Transaction txn = super.txn_begin_nowait(parent, level);
             if (lock != null) {
@@ -155,7 +184,7 @@ class DBX_Repository extends DB_Repository {
     }
 
     // Returns Lock instance if acquired. Caller must unlock it.
-    private Lock acquire(Transaction parent) throws InterruptedException {
+    private Lock acquire(Transaction parent, long timeoutMicros) throws Exception {
         if (parent != null) {
             // If nested, then assume parent (or ancestor) is already the active one.
             return null;
@@ -168,13 +197,24 @@ class DBX_Repository extends DB_Repository {
                 // Multiple top-level transactions in the same thread is okay.
                 return lock;
             }
-            while (mActiveTxn != null) {
-                mTxnCondition.await();
+            if (mActiveTxn != null) {
+                long timeoutNanos = TimeUnit.MICROSECONDS.toNanos(timeoutMicros);
+                while (true) {
+                    timeoutNanos = mTxnCondition.awaitNanos(timeoutNanos);
+                    if (mActiveTxn == null) {
+                        break;
+                    }
+                    if (timeoutNanos <= 0) {
+                        throw new PersistTimeoutException
+                            ("Timed out waiting for transaction semaphore: " +
+                             timeoutMicros + " microseconds");
+                    }
+                }
             }
             mActiveTxnThread = thread;
             // Caller calls addActiveTxn.
             return lock;
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             lock.unlock();
             throw e;
         }

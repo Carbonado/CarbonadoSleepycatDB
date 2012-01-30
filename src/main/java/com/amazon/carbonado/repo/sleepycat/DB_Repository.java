@@ -257,6 +257,7 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
     final boolean mDatabasesTransactional;
     final boolean mReverseSplitOff;
     final Boolean mChecksum;
+    final long mLockTimeoutMicros;
     volatile String mRegisteredHome;
 
     /**
@@ -381,6 +382,8 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
 
         long lockTimeout = envConfig.getLockTimeout();
         long txnTimeout = envConfig.getTxnTimeout();
+
+        mLockTimeoutMicros = lockTimeout;
 
         long deadlockInterval = Math.min(lockTimeout, txnTimeout);
         // Make sure interval is no smaller than 0.5 seconds.
