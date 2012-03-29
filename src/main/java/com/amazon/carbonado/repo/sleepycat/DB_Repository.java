@@ -37,6 +37,7 @@ import com.sleepycat.db.DatabaseType;
 import com.sleepycat.db.Environment;
 import com.sleepycat.db.EnvironmentConfig;
 import com.sleepycat.db.LockDetectMode;
+import com.sleepycat.db.PanicHandler;
 import com.sleepycat.db.Transaction;
 import com.sleepycat.db.TransactionConfig;
 import com.sleepycat.db.VerifyConfig;
@@ -144,6 +145,15 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             envConfig.setAllowCreate(!builder.getReadOnly());
             envConfig.setTxnNoSync(builder.getTransactionNoSync());
             envConfig.setTxnWriteNoSync(builder.getTransactionWriteNoSync());
+            
+            final BDBPanicHandler panicHandler = builder.getPanicHandler();
+            envConfig.setPanicHandler(new PanicHandler() {
+                    public void panic(Environment env, DatabaseException exception) {
+                        if (panicHandler != null) {
+                            panicHandler.onPanic(env, exception);
+                        }
+                    }
+                });
 
             try {
                 if (builder.getTransactionMaxActive() != null) {
