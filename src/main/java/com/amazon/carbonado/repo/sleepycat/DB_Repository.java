@@ -233,6 +233,14 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
 
             envConfig.setLockTimeout(builder.getLockTimeoutInMicroseconds());
             envConfig.setTxnTimeout(builder.getTransactionTimeoutInMicroseconds());
+
+            try {
+                if (builder.getLockConflictDeadlockDetectMode()) {
+                    envConfig.setLockDetectMode(LockDetectMode.DEFAULT);
+                }
+            } catch (NoSuchMethodError e) {
+                // Carbonado package might be older.
+            }
         } else {
             if (!envConfig.getTransactional()) {
                 throw new IllegalArgumentException("EnvironmentConfig: getTransactional is false");
@@ -302,6 +310,13 @@ class DB_Repository extends BDBRepository<Transaction> implements CompactionCapa
             envConfig.setRunRecovery(false);
             envConfig.setRunFatalRecovery(true);
             envConfig.setPrivate(true);
+
+            try {
+                envConfig.setLockDetectMode(LockDetectMode.NONE);
+            } catch (NoSuchMethodError e) {
+                // Feature might not be supported.
+            }
+
             // Always ensure this option is enabled, cirumventing the backwards
             // compatible logic in the createEnvConfig method.
             envConfig.setInitializeLogging(true);
