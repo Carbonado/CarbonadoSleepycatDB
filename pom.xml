@@ -9,12 +9,12 @@
   <description>
     Support for Sleepycat DB Carbonado repository.
   </description>
-  <url>http://carbonado.sourceforge.net/</url>
+  <url>https://github.com/Carbonado/CarbonadoSleepycatDB/</url>
   <inceptionYear>2006</inceptionYear>
 
   <organization>
     <name>Amazon Technologies, Inc.</name>
-    <url>http://sourceforge.net/projects/carbonado/</url>
+    <url>https://github.com/Carbonado/CarbonadoSleepycatDB/</url>
   </organization>
 
   <licenses>
@@ -26,12 +26,11 @@
 
   <scm>
     <connection>scm:svn:https://svn.sourceforge.net/svnroot/carbonado/trunk/CarbonadoSleepycatDB</connection>
-    <developerConnection>scm:svn:https://svn.sourceforge.net/svnroot/carbonado/trunk/CarbonadoSleepycatDB</developerConnection>
-    <url>http://svn.sourceforge.net/viewvc/carbonado/trunk/CarbonadoSleepycatDB/</url>
+    <url>https://github.com/Carbonado/CarbonadoSleepycatDB/</url>
   </scm>
 
   <issueManagement>
-    <url>http://sourceforge.net/tracker/?group_id=171277</url>
+    <url>https://github.com/Carbonado/CarbonadoSleepycatDB/issues</url>
   </issueManagement>
 
   <mailingLists>
@@ -48,32 +47,35 @@
       <id>broneill</id>
       <email>broneill@users.sourceforge.net</email>
       <organization>Amazon Technologies, Inc.</organization>
-      <roles>
-        <role>Project Lead</role>
-      </roles>
     </developer>
 
     <developer>
-      <name>Don Schneider</name>
-      <id>dondo_seattle</id>
-      <email>dondo_seattle@users.sourceforge.net</email>
-      <organization>Amazon Technologies, Inc.</organization>
-    </developer>
-
-    <developer>
-      <name>Vidya Iyer</name>
-      <id>vidyaiyer</id>
-      <email>vidyaiyer@users.sourceforge.net</email>
-      <organization>Amazon Technologies, Inc.</organization>
-    </developer>
-
-    <developer>
-      <name>Nicole Deflaux</name>
-      <id>deflaux</id>
-      <email>deflaux@users.sourceforge.net</email>
+      <name>Jesse Morgan</name>
+      <id>jesterpm</id>
+      <email>morganjm@amazon.com</email>
       <organization>Amazon Technologies, Inc.</organization>
     </developer>
   </developers>
+
+  <contributors>
+    <contributor>
+      <name>Don Schneider</name>
+      <email>dondo_seattle@users.sourceforge.net</email>
+      <organization>Amazon Technologies, Inc.</organization>
+    </contributor>
+
+    <contributor>
+      <name>Vidya Iyer</name>
+      <email>vidyaiyer@users.sourceforge.net</email>
+      <organization>Amazon Technologies, Inc.</organization>
+    </contributor>
+
+    <contributor>
+      <name>Nicole Deflaux</name>
+      <email>deflaux@users.sourceforge.net</email>
+      <organization>Amazon Technologies, Inc.</organization>
+    </contributor>
+  </contributors>
 
   <dependencies>
     <dependency>
@@ -130,11 +132,11 @@
           <reportSet>
             <reports>
               <report>project-team</report>
-	      <report>mailing-list</report>
+              <report>mailing-list</report>
               <report>issue-tracking</report>
               <report>scm</report>
               <report>license</report>
-	    </reports>
+            </reports>
           </reportSet>
         </reportSets>
       </plugin>
