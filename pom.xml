@@ -5,7 +5,7 @@
   <artifactId>carbonado-sleepycat-db</artifactId>
   <packaging>jar</packaging>
   <name>CarbonadoSleepycatDB</name>
-  <version>1.2.3</version>
+  <version>1.2.4</version>
   <description>
     Support for Sleepycat DB Carbonado repository.
   </description>
@@ -81,7 +81,7 @@
     <dependency>
       <groupId>com.amazon.carbonado</groupId>
       <artifactId>carbonado</artifactId>
-      <version>1.2.3</version>
+      <version>[1.2.4,)</version>
     </dependency>
     <dependency>
       <groupId>com.sleepycat</groupId>
@@ -105,26 +105,6 @@
 
   <reporting>
     <plugins>
-      <!--
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-          <configuration>
-            <aggregate>true</aggregate>
-            <links>
-              <link>http://java.sun.com/j2se/1.5.0/docs/api</link>
-            </links>
-          </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jxr-plugin</artifactId>
-        <configuration>
-          <aggregate>true</aggregate>
-        </configuration>
-      </plugin>
-      -->
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-project-info-reports-plugin</artifactId>
@@ -142,4 +122,79 @@
       </plugin>
     </plugins>
   </reporting>
+
+  <profiles>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>2.2.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <!-- We must generate a -javadoc JAR file to publish on Maven Central,
+               but this package has no public methods. Here's an empty jar. -->
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-jar-plugin</artifactId>
+              <executions>
+                  <execution>
+                      <id>empty-javadoc-jar</id>
+                      <phase>package</phase>
+                      <goals>
+                          <goal>jar</goal>
+                      </goals>
+                      <configuration>
+                          <classifier>javadoc</classifier>
+                          <classesDirectory>${basedir}/javadoc</classesDirectory>
+                      </configuration>
+                  </execution>
+              </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.5</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <configuration>
+                  <keyname>2753E2C6</keyname>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <version>1.6.3</version>
+            <extensions>true</extensions>
+            <configuration>
+               <serverId>ossrh</serverId>
+               <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+               <autoReleaseAfterClose>true</autoReleaseAfterClose>
+            </configuration>
+          </plugin>
+
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
